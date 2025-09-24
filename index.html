@@ -10,82 +10,101 @@
 
   gtag('config', 'G-Z5NC5MK1Z0');
 </script>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>404 Not Found</title>
-<style>
-  body {
-    margin: 0;
-    background-color: #222;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    text-align: center;
-  }
-  h1 {
-    font-size: 3em;
-    margin: 0.2em;
-  }
-  p {
-    font-size: 1.2em;
-    margin-top: 1em;
-    cursor: pointer;
-    padding: 0.5em 1em;
-    background-color: #444;
-    border-radius: 8px;
-    transition: background-color 0.3s;
-  }
-  p:hover {
-    background-color: #555;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 Not Found</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #222;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+    }
+    h1 { font-size: 3em; margin: 0.2em; }
+    p {
+      font-size: 1.2em;
+      margin-top: 1em;
+      cursor: pointer;
+      padding: 0.5em 1em;
+      background-color: #444;
+      border-radius: 8px;
+      transition: background-color 0.3s;
+    }
+    p:hover { background-color: #555; }
+  </style>
 </head>
 <body>
 
-<h1>404 Not Found</h1>
-<p id="pageDir">page directory</p>
+  <h1>404 Not Found</h1>
+  <p id="pageDir">page directory</p>
 
-<script>
-  let nCount = 0;
- document.getElementById('pageDir').addEventListener('click', function() {
-    alert('Click n 4 times to open NebuliOS');
-  });
- document.addEventListener('keydown', function(event) {
-    if (event.key.toLowerCase() === 'n') {
-      nCount++;
-      if (nCount === 4) {
-        const newTab = window.open('', 'NewTab');
-        if (newTab) {
-          newTab.document.write(`
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-              <meta charset="UTF-8" />
-              <title>New Tab</title>
-            </head>
-            <body></body>
-            </html>
-          `);
-          newTab.document.close();
+  <script>
+    (function () {
+      let nCount = 0;
+      const targetUrl = '/main.html';
 
-          fetch('/main.html')
-            .then(response => response.text())
-            .then(content => {
-              newTab.document.body.innerHTML = content;
-            })
-            .catch(error => console.error('Error loading /main.html:', error));
+      document.getElementById('pageDir').addEventListener('click', function() {
+        alert('Press "n" 4 times to open NebuliOS (embedded in about:blank).');
+      });
+
+      document.addEventListener('keydown', async function(event) {
+        if (!event.key) return;
+        if (event.key.toLowerCase() === 'n') {
+          nCount++;
+   clearTimeout(window.__nResetTimer);
+          window.__nResetTimer = setTimeout(() => { nCount = 0; }, 1000);
+
+          if (nCount === 4) {
+            nCount = 0;
+            clearTimeout(window.__nResetTimer);
+
+            const newTab = window.open('', '_blank');
+            if (!newTab) {
+              window.location.href = targetUrl;
+              return;
+            }
+
+            try {
+              const resp = await fetch(targetUrl, { cache: 'no-store' });
+              if (!resp.ok) {
+                newTab.location.href = targetUrl;
+                return;
+              }
+              let content = await resp.text();
+
+              const baseTag = '<base href="https://google.com">';
+              if (/<head[^>]*>/i.test(content)) {
+                content = content.replace(/<head([^>]*)>/i, match => match + baseTag);
+              } else {
+                content = content.replace(/<html([^>]*)>/i, match => match + '<head>' + baseTag + '</head>');
+              }
+
+              newTab.document.open();
+              newTab.document.write(content);
+              newTab.document.close();
+
+              try {
+                newTab.document.title = 'New Tab';
+              } catch (err) {
+                console.warn('Could not set title on injected document:', err);
+              }
+            } catch (err) {
+              console.error('Error injecting main.html into about:blank:', err);
+              try { newTab.location.href = targetUrl; } catch (_) { window.location.href = targetUrl; }
+            }
+          }
+        } else {
+          nCount = 0;
         }
-        nCount = 0;
-      }
-    } else {
-      nCount = 0;
-    }
-  });
-</script>
+      });
+    })();
+  </script>
 
 </body>
 </html>
